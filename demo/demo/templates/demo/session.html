@@ -1,0 +1,54 @@
+{% extends 'demo/base.html' %}
+
+{% load bootstrap3 %}
+{% load settings_tags %}
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+{% block title %}
+    {% get_title %}
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <h1>Управление сеансами</h1>
+        <div class="row">
+            <div class="col-sm-3 col-md-6" style="background-color:lavender;">
+                <p>
+                <form method="post" action="/session/add/">{% csrf_token %}
+                    <label>Добавление нового сеанса:</label>
+                    {% csrf_token %}
+                    {{ formadd.as_p }}
+                    <button type="submit" class="btn btn-default">Добавить</button>
+                </form>
+                </p>
+            </div>
+
+            <div class="col-sm-9 col-md-6" style="background-color:lavenderblush;">
+                <p>
+                <form method="post" action="/session/edit/{{ id_session }}/">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Выберите сеанс для редактирования:</label></label>
+                        <select class="select_session" id="sel1">
+                            {% for element in list_session %}
+                                <option>{{ element.film.film }} {{ element.date_time }}
+                                    зал № {{ element.hall.number }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+                </p>
+                <p>
+                <form method="post" action="/session/edit/{{ id_session }}/">
+                    <label>Редактирование сеанса:</label>
+                    {% csrf_token %}
+                    {% bootstrap_form formedit %}
+                    <button type="submit" class="btn btn-default">Обновить</button>
+                </form>
+                </p>
+            </div>
+        </div>
+    </div>
+{% endblock %}
