@@ -2,9 +2,8 @@
 
 {% load bootstrap3 %}
 {% load settings_tags %}
-<head>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-</head>
+{% load static %}
+
 {% block title %}
     {% get_title %}
 {% endblock %}
@@ -51,4 +50,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block scripts-footer %}
+    {{ block.super }}
+    <script type="application/javascript" src="{% static 'demo/static/js/main.js' %}"></script>
 {% endblock %}
