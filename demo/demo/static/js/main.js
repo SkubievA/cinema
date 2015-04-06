@@ -1,3 +1,4 @@
-$( ".select_session" ).change(function() {
-	 alert( "Handler for .change() called." );
-	});
+$('#sel1').on('change', function() {
+  alert( this.value );
+});
+alert('GOVNO');

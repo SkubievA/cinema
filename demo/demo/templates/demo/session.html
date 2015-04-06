@@ -1,8 +1,6 @@
 {% extends 'demo/base.html' %}
-
 {% load bootstrap3 %}
 {% load settings_tags %}
-{% load static %}
 
 {% block title %}
     {% get_title %}
@@ -50,9 +48,4 @@
             </div>
         </div>
     </div>
-{% endblock %}
-
-{% block scripts-footer %}
-    {{ block.super }}
-    <script type="application/javascript" src="{% static 'demo/static/js/main.js' %}"></script>
 {% endblock %}

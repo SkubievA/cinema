@@ -1,20 +1,23 @@
 {% extends 'demo/bootstrap.html' %}
-
 {% load bootstrap3 %}
+{% load static %}
+
+{% block javascripts %}
+    {{ block.super }}
+    <script type="text/javascript" src="{% static 'js/main.js' %}"></script>
+{% endblock %}
 
 {% block bootstrap3_content %}
-    <div class="container">
-        <h1>{% block title %}(no title){% endblock %}</h1>
-
-        <p>
-            <a href="{% url 'home' %}">Главная</a>
-            <a href="{% url 'schedule' %}">Расписание</a>
-            <a href="{% url 'session' %}">Сессии</a>
-            <a href="/admin">Панель управления</a>
-        </p>
-
-        {% bootstrap_messages %}
-        {% block content %}(no content){% endblock %}
-    </div>
+<div class="container">
+    <h1>{% block title %}(no title){% endblock %}</h1>
+    <p>
+        <a href="{% url 'home' %}">Главная</a>
+        <a href="{% url 'schedule' %}">Расписание</a>
+        <a href="{% url 'session' %}">Сессии</a>
+        <a href="/admin">Панель управления</a>
+    </p>
+    {% bootstrap_messages %}
+    {% block content %}(no content){% endblock %}
+</div>
 
 {% endblock %}
