@@ -24,6 +24,7 @@ urlpatterns += patterns('demo.views',
     url(r'^films/add/$', 'add_film', name='add_film'),
     url(r'^films/edit/(?P<id>.+)/$', 'edit_film', name='edit_film'),
     url(r'^films/delete/(?P<id>.+)/$', 'delete_film', name='delete_film'),
+    url(r'^schedule/view/(?P<id>.+)/$', 'view_schedule', name='view_schedule'),
 ) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 urlpatterns += staticfiles_urlpatterns()

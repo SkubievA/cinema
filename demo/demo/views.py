@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from demo.models import Film, Hall, Session
+from demo.models import Film, Hall, Session, Place
 from demo.forms import SessionModelForm, FilmModelForm
 from django.views.generic.base import TemplateView
 from django.http import HttpResponse
@@ -18,6 +18,20 @@ def add_session(request):
             form = form.save()
             if request.is_ajax():
                 return HttpResponse('true')
+            hall = Hall.objects.get(number=request.POST.get('hall'))
+            x = 1
+            y = 1
+            while x <= hall.count_series:
+                while y <= hall.count_place:
+                    place = Place(status=0,
+                                  session_id=id,
+                                  number_place=hall.count_place,
+                                  number_series=hall.count_series,
+                                  price=100
+                                  )
+                    y += 1
+                    place.save()
+                x += 1
             messages.success(request, 'Новый сеанс добавлен.')
         elif request.is_ajax():
             return HttpResponse('false')
@@ -26,7 +40,7 @@ def add_session(request):
     template_name = 'demo/session.html'
     return render_to_response(template_name,
                               RequestContext(request, {
-                                  'formadd': form,
+                                  'formadd': SessionModelForm(),
                                   'formedit': session_edit_form,
                                   "list_session": Session.objects.all(),
                               }))
@@ -102,6 +116,24 @@ class HomePageView(TemplateView):
         return context
 
 
+def view_schedule(request, id):
+    try:
+        preferences = Session.objects.get(
+            id=id
+        )
+    except Session.DoesNotExist:
+        preferences = None
+
+    result_html = '<table class="table table-hover" width="100%">'
+
+    result_html += '</table>'
+    template_name = 'demo/schedule.html'
+    return render_to_response(template_name,
+                              RequestContext(request, {
+                                  'html': result_html,
+                              }))
+
+
 class ScheduleView(TemplateView):
     template_name = 'demo/schedule.html'
     now = datetime.now()
@@ -129,7 +161,6 @@ class ScheduleView(TemplateView):
             if i not in l2:
                 l2.append(i)
         result_html += '</tr>'
-        print l2
         for i in l2:
             session = Session.objects.filter(film=f, status=0, hall__number=i)
             for s2 in session:
@@ -139,7 +170,8 @@ class ScheduleView(TemplateView):
                     time_start = 10
                     while time_start < 24:
                         if time_start == int(datetime.strftime(s2.date_time, "%H")):
-                            result_html += '<td bgcolor="#E6E6FA">%s</td>' % datetime.strftime(s2.date_time, "%H:%M")
+                            result_html += '<td bgcolor="#E6E6FA"><a href="/schedule/view/%s">%s</a></td>' % \
+                                           (s2.id, datetime.strftime(s2.date_time, "%H:%M"))
                         else:
                             result_html += '<td></td>'
                         time_start += 1
@@ -174,18 +206,37 @@ class HallView(TemplateView):
         hall = Hall.objects.get(number=number)
         context['select_number'] = number
 
-        x = 1
+        x = 5
         y = 1
-        result_html = ''
+        result_html = '<table class="table table-hover"><tr><th bgcolor="#E6E6FA">Номер ряда</th>'
+
+        result_html += '<th>э</th><th>к</th><th>р</th><th>а</th><th>н</th>'
         while x <= hall.count_series:
-            result_html += '<p>' + str(x) + ' |'
+            result_html += '<th></th>'
+            x += 1
+        result_html += '</tr>'
+        x = 1
+        while x <= hall.count_series:
+            if x % 2 != 0:
+                result_html += '<tr><td bgcolor="#E6E6FA" width="30">%s</td>' % str(x)
+            else:
+                result_html += '<tr><td bgcolor="#D3D3D3" width="30">%s</td>' % str(x)
             while y <= hall.count_place:
-                result_html += '    ' + str(y)
+                if x % 2 == 0:
+                    if (y + 1) % 2 == 0:
+                        result_html += '<td bgcolor="#E6E6FA">%s</td>' % str(y)
+                    else:
+                        result_html += '<td bgcolor="#D3D3D3">%s</td>' % str(y)
+                else:
+                    if y % 2 == 0:
+                        result_html += '<td bgcolor="#E6E6FA">%s</td>' % str(y)
+                    else:
+                        result_html += '<td bgcolor="#D3D3D3">%s</td>' % str(y)
                 y += 1
-            result_html += '</p>'
+            result_html += '</tr>'
             x += 1
             y = 1
-
+        result_html += '</html>'
         context['hall'] = result_html
         context['title_hall'] = 'Визуальное размещение мест:'
         return self.render_to_response(context)
