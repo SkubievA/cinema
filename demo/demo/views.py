@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.template import RequestContext
 from django.shortcuts import render_to_response
-from django.forms.models import inlineformset_factory
+from datetime import datetime, timedelta
 
 
 def add_session(request):
@@ -30,6 +30,174 @@ def add_session(request):
                                   'formedit': session_edit_form,
                                   "list_session": Session.objects.all(),
                               }))
+
+
+def edit_session(request, id):
+    session_add_form = SessionModelForm()
+    try:
+        preferences = Session.objects.get(
+            id=id
+        )
+    except Session.DoesNotExist:
+        preferences = None
+
+    if request.method == "POST":
+        form = SessionModelForm(data=request.POST,
+                                instance=preferences)
+        if form.is_valid():
+            preferences = form.save()
+            if request.is_ajax():
+                return HttpResponse('true')
+            messages.success(request, 'Данные о сеансе обновлены.')
+        elif request.is_ajax():
+            return HttpResponse('false')
+    else:
+        form = SessionModelForm(
+            id=id,
+            instance=preferences
+        )
+    template_name = 'demo/session.html'
+    return render_to_response(template_name,
+                              RequestContext(request, {
+                                  'formadd': session_add_form,
+                                  'formedit': form,
+                                  "id_film": id,
+                                  "list_session": Session.objects.all(),
+                              }))
+
+
+class SessionView(TemplateView):
+    template_name = 'demo/session.html'
+    session_add_form = SessionModelForm()
+    session_edit_form = SessionModelForm(instance=Session.objects.get(id=1))
+
+    def post(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        id = request.POST.get('sel1')[0:request.POST.get('sel1').find('/')]
+        session_edit_form = SessionModelForm(instance=Session.objects.get(id=id))
+        context['formadd'] = self.session_add_form
+        context['formedit'] = session_edit_form
+        context['select_session'] = id
+        return self.render_to_response(context)
+
+    def get_context_data(self, **kwargs):
+        context = super(SessionView, self).get_context_data(**kwargs)
+
+        context.update({
+            "list_session": Session.objects.all(),
+            "formadd": self.session_add_form,
+            "formedit": self.session_edit_form,
+            })
+        return context
+
+
+class HomePageView(TemplateView):
+    template_name = 'demo/home.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(HomePageView, self).get_context_data(**kwargs)
+        context.update({
+            "language": "fffsd",
+            })
+        return context
+
+
+class ScheduleView(TemplateView):
+    template_name = 'demo/schedule.html'
+    now = datetime.now()
+    delta = timedelta(days=1)
+
+    #ЖЕСТЬ
+    result_html = '<table class="table table-hover" width="100%">'
+    time_start = 10
+
+    result_html += '<tr><th>Время:</th>'
+    while time_start < 24:
+        result_html += '<th>' + str(time_start) + ' <sup>00</sup></th>'
+        time_start += 1
+    result_html += '</tr>'
+
+    film = Film.objects.all()
+    for f in film:
+        session = Session.objects.filter(film=f, status=0)
+        result_html += '<tr><td>%s</td></tr><tr>' % f.film
+        hall = []
+        for s in session:
+            hall.append(int(s.hall.number))
+        l2 = []
+        for i in hall:
+            if i not in l2:
+                l2.append(i)
+        result_html += '</tr>'
+        print l2
+        for i in l2:
+            session = Session.objects.filter(film=f, status=0, hall__number=i)
+            for s2 in session:
+                result_html += '<tr><td>Зал № %s</td>' % i
+                if datetime.strftime(s2.date_time, "%Y.%m.%d") == datetime.strftime(now, "%Y.%m.%d"):
+                    # СЕАНС В СЕГОДНЯШНИЙ ДЕНЬ РИСУЕМ ЕГО В РАСПИСАНИИ
+                    time_start = 10
+                    while time_start < 24:
+                        if time_start == int(datetime.strftime(s2.date_time, "%H")):
+                            result_html += '<td bgcolor="#E6E6FA">%s</td>' % datetime.strftime(s2.date_time, "%H:%M")
+                        else:
+                            result_html += '<td></td>'
+                        time_start += 1
+                    result_html += '</tr>'
+        result_html += '<tr><th>Время:</th>'
+        time_start = 10
+        while time_start < 24:
+            result_html += '<th>' + str(time_start) + ' <sup>00</sup></th>'
+            time_start += 1
+        result_html += '</tr>'
+
+    result_html += '</table>'
+    #Конец ЖЕСТИ
+
+    def get_context_data(self, **kwargs):
+        context = super(ScheduleView, self).get_context_data(**kwargs)
+
+        context.update({
+            "html": self.result_html,
+            # "now": datetime.strftime(self.now, "%Y.%m.%d"),
+            # "next1": datetime.strftime(self.now + self.delta, "%Y.%m.%d"),
+            })
+        return context
+
+
+class HallView(TemplateView):
+    template_name = 'demo/hall.html'
+
+    def post(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        number = request.POST.get('hall')
+        hall = Hall.objects.get(number=number)
+        context['select_number'] = number
+
+        x = 1
+        y = 1
+        result_html = ''
+        while x <= hall.count_series:
+            result_html += '<p>' + str(x) + ' |'
+            while y <= hall.count_place:
+                result_html += '    ' + str(y)
+                y += 1
+            result_html += '</p>'
+            x += 1
+            y = 1
+
+        context['hall'] = result_html
+        context['title_hall'] = 'Визуальное размещение мест:'
+        return self.render_to_response(context)
+
+    def get_context_data(self, **kwargs):
+        context = super(HallView, self).get_context_data(**kwargs)
+
+        context.update({
+            "list_hall": Hall.objects.all(),
+            "id_session": 1,
+            })
+        return context
 
 
 def add_film(request):
@@ -77,124 +245,50 @@ def edit_film(request, id):
             id=id,
             instance=preferences
         )
-    template_name = 'demo/films.html'
+    template_name = 'demo/film.html'
     return render_to_response(template_name,
                               RequestContext(request, {
                                   'formadd': FilmModelForm(),
                                   'formedit': form,
                                   "id_session": id,
-                                  "select_film": 3,
                                   "list_film": Film.objects.all(),
                               }))
 
 
-def edit_session(request, id):
-    session_add_form = SessionModelForm()
+def delete_film(request, id):
+    film_edit_form = FilmModelForm(instance=Film.objects.get(id=1))
     try:
-        preferences = Session.objects.get(
+        preferences = Film.objects.get(
             id=id
         )
-    except Session.DoesNotExist:
+    except Film.DoesNotExist:
         preferences = None
 
+    preferences.delete()
+
     if request.method == "POST":
-        form = SessionModelForm(data=request.POST,
-                                instance=preferences)
+        form = FilmModelForm(data=request.POST,
+                             instance=preferences)
         if form.is_valid():
             preferences = form.save()
             if request.is_ajax():
                 return HttpResponse('true')
-            messages.success(request, 'Данные о сеансе обновлены.')
+            messages.success(request, 'Фильм удален.')
         elif request.is_ajax():
             return HttpResponse('false')
     else:
-        form = SessionModelForm(
+        form = FilmModelForm(
             id=id,
             instance=preferences
         )
-    template_name = 'demo/session.html'
+    template_name = 'demo/film.html'
     return render_to_response(template_name,
                               RequestContext(request, {
-                                  'formadd': session_add_form,
-                                  'formedit': form,
-                                  "id_film": id,
-                                  "list_session": Session.objects.all(),
+                                  'formadd': FilmModelForm(),
+                                  'formedit': film_edit_form,
+                                  "id_session": id,
+                                  "list_film": Film.objects.all(),
                               }))
-
-
-class HomePageView(TemplateView):
-    template_name = 'demo/home.html'
-
-    def get_context_data(self, **kwargs):
-        context = super(HomePageView, self).get_context_data(**kwargs)
-        context.update({
-            "language": "fffsd",
-            })
-        return context
-
-
-class ScheduleView(TemplateView):
-    template_name = 'demo/schedule.html'
-
-
-class SessionView(TemplateView):
-    template_name = 'demo/session.html'
-    session_add_form = SessionModelForm()
-    session_edit_form = SessionModelForm(instance=Session.objects.get(id=1))
-
-    def post(self, request, *args, **kwargs):
-        context = self.get_context_data(**kwargs)
-        id = request.POST.get('sel1')[0:request.POST.get('sel1').find('/')]
-        session_edit_form = SessionModelForm(instance=Session.objects.get(id=id))
-        context['formadd'] = self.session_add_form
-        context['formedit'] = session_edit_form
-        context['select_session'] = id
-        return self.render_to_response(context)
-
-    def get_context_data(self, **kwargs):
-        context = super(SessionView, self).get_context_data(**kwargs)
-
-        context.update({
-            "list_session": Session.objects.all(),
-            "formadd": self.session_add_form,
-            "formedit": self.session_edit_form,
-            })
-        return context
-
-
-class HallView(TemplateView):
-    template_name = 'demo/hall.html'
-
-    def post(self, request, *args, **kwargs):
-        context = self.get_context_data(**kwargs)
-        number = request.POST.get('hall')
-        hall = Hall.objects.get(number=number)
-        context['select_number'] = number
-
-        x = 1
-        y = 1
-        result_html = ''
-        while x <= hall.count_series:
-            result_html += '<p>' + str(x) + ' |'
-            while y <= hall.count_place:
-                result_html += '    ' + str(y)
-                y += 1
-            result_html += '</p>'
-            x += 1
-            y = 1
-
-        context['hall'] = result_html
-        context['title_hall'] = 'Визуальное размещение мест:'
-        return self.render_to_response(context)
-
-    def get_context_data(self, **kwargs):
-        context = super(HallView, self).get_context_data(**kwargs)
-
-        context.update({
-            "list_hall": Hall.objects.all(),
-            "id_session": 1,
-            })
-        return context
 
 
 class FilmsView(TemplateView):
@@ -203,12 +297,11 @@ class FilmsView(TemplateView):
 
     def post(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
-        name = request.POST.get('film')
-        film = Film.objects.get(film=name)
+        id = request.POST.get('film')[0:request.POST.get('film').find('/')]
+        film = Film.objects.get(id=id)
         context['formadd'] = self.film_add_form
         context['formedit'] = FilmModelForm(instance=film)
-        context['select_film'] = name
-        context['id_film'] = int(film.id),
+        context['id_film'] = id
         return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):

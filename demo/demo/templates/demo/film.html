@@ -8,7 +8,7 @@
 
 {% block content %}
     <div class="container-fluid">
-        <h1>Управление фильмами</h1>
+        <h2>Управление фильмами</h2>
         <div class="row">
             <div class="col-sm-3 col-md-6" style="background-color:lavender;">
                 <p>
@@ -19,9 +19,9 @@
                             <select class="select_hall" id="film" name="film">
                                 {% for element in list_film %}
                                     {% if element.film == select_film %}
-                                        <option selected="selected">{{ element.film }}</option>
+                                        <option selected="selected">{{ element.id}}/{{ element.film }}</option>
                                     {% else %}
-                                        <option>{{ element.film }}</option>
+                                        <option>{{ element.id}}/{{ element.film }}</option>
                                     {% endif %}
                                 {% endfor %}
                             </select>
@@ -30,8 +30,7 @@
                     </form>
                 </p>
                 <p>
-                {{ id_film }}
-                    {% if select_film %}
+                    {% if id_film %}
                         <form method="post" action="/films/edit/{{ id_film }}/">
                             <h4><b>Редактирование фильма:</b></h4>
                             {% csrf_token %}

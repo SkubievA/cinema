@@ -8,11 +8,9 @@
 {% endblock %}
 
 {% block content %}
-
     <form role="form" method="post">
         {% csrf_token %}
         {% bootstrap_form form %}
         {% buttons submit='OK' reset="Cancel" %}{% endbuttons %}
     </form>
-
 {% endblock %}
