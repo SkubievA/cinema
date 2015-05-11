@@ -22,7 +22,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'cinema',
         'USER': 'root',
-        'PASSWORD': 'bernard94',
+        'PASSWORD': 'иуктфкв94',
         }
 }
 

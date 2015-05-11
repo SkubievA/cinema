@@ -7,11 +7,12 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.template import RequestContext
 from django.shortcuts import render_to_response
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 
 def add_session(request):
-    session_edit_form = SessionModelForm(instance=Session.objects.get(id=1))
+    sess = Session.objects.order_by('-id')[0]
+    session_edit_form = SessionModelForm(instance=Session.objects.get(id=sess.id))
     if request.method == "POST":
         form = SessionModelForm(data=request.POST)
         if form.is_valid():
@@ -24,13 +25,14 @@ def add_session(request):
             while x <= hall.count_series:
                 while y <= hall.count_place:
                     place = Place(status=0,
-                                  session_id=id,
-                                  number_place=hall.count_place,
-                                  number_series=hall.count_series,
+                                  session_id=sess.id+1,
+                                  number_place=y,
+                                  number_series=x,
                                   price=100
-                                  )
+                    )
                     y += 1
                     place.save()
+                y = 1
                 x += 1
             messages.success(request, 'Новый сеанс добавлен.')
         elif request.is_ajax():
@@ -43,7 +45,7 @@ def add_session(request):
                                   'formadd': SessionModelForm(),
                                   'formedit': session_edit_form,
                                   "list_session": Session.objects.all(),
-                              }))
+                                  }))
 
 
 def edit_session(request, id):
@@ -77,13 +79,14 @@ def edit_session(request, id):
                                   'formedit': form,
                                   "id_film": id,
                                   "list_session": Session.objects.all(),
-                              }))
+                                  }))
 
 
 class SessionView(TemplateView):
+    sess = Session.objects.order_by('-id')[0]
     template_name = 'demo/session.html'
     session_add_form = SessionModelForm()
-    session_edit_form = SessionModelForm(instance=Session.objects.get(id=1))
+    session_edit_form = SessionModelForm(instance=Session.objects.get(id=sess.id))
 
     def post(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
@@ -125,75 +128,146 @@ def view_schedule(request, id):
         preferences = None
 
     result_html = '<table class="table table-hover" width="100%">'
-
+    result_html += '<tr><td><b>Фильм:</b> %s</td></tr>' % preferences.film.film
+    result_html += '<tr><td><b>Дата и время сеанса:</b> %s</td></tr>' % preferences.date_time
+    result_html += '<tr><td><b>Продолжительность:</b> %s</td></tr>' % preferences.time_session
     result_html += '</table>'
+    result_html += '<h3>Состояние мест</h3>'
+    result_html += '<br><table><tr><td bgcolor="#D3D3D3">100</td><td> - место забронировано</td></tr></table><br>'
+    result_html += '<table class="table table-hover" width="100%">'
+    hall = Hall.objects.get(id=preferences.hall_id)
+    x = 1
+    y = 0
+    result_html += '<tr><td bgcolor="#E6E6FA"></td>'
+    while x <= hall.count_place:
+        result_html += '<td bgcolor="#E6E6FA">%s</td>' % x
+        x += 1
+    result_html += '</tr>'
+    x = 1
+    result_html += '</tr>'
+    while x <= hall.count_series:
+        result_html += '<tr>'
+        while y <= hall.count_place:
+            if y == 0:
+                result_html += '<td bgcolor="#E6E6FA">%s</td>' % x
+                y += 1
+                continue
+            place = Place.objects.get(number_series=x, number_place=y, session_id=id)
+            place_list = request.GET.getlist('place')
+            url = ''
+            if place_list:
+                for i in place_list:
+                    url += '&place=%s' % i
+                if str(place.id) in place_list:
+                    result_html += '<td bgcolor="#FF0909">%s</td>' % place.price
+                    y += 1
+                    continue
+            if place.status == 0:
+                result_html += '<td><a href="?place=%s%s">%s</a></td>' % (place.id, url, place.price)
+            else:
+                result_html += '<td bgcolor="#D3D3D3">%s</td>' % place.price
+            y += 1
+        result_html += '</tr>'
+        y = 0
+        x += 1
+    result_html += '</table>'
+    result_html += '<a href="/place_handler">Забронировать</a>'
     template_name = 'demo/schedule.html'
     return render_to_response(template_name,
                               RequestContext(request, {
                                   'html': result_html,
-                              }))
+                                  }))
 
 
 class ScheduleView(TemplateView):
     template_name = 'demo/schedule.html'
-    now = datetime.now()
-    delta = timedelta(days=1)
 
-    #ЖЕСТЬ
-    result_html = '<table class="table table-hover" width="100%">'
-    time_start = 10
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
 
-    result_html += '<tr><th>Время:</th>'
-    while time_start < 24:
-        result_html += '<th>' + str(time_start) + ' <sup>00</sup></th>'
-        time_start += 1
-    result_html += '</tr>'
+        if request.GET.get('day'):
+            tmp = request.GET.get('day')
+            DATE = date(int(tmp[0:4]), int(tmp[5:7]), int(tmp[8:10]))
+        else:
+            DATE = datetime.now()
 
-    film = Film.objects.all()
-    for f in film:
-        session = Session.objects.filter(film=f, status=0)
-        result_html += '<tr><td>%s</td></tr><tr>' % f.film
-        hall = []
-        for s in session:
-            hall.append(int(s.hall.number))
-        l2 = []
-        for i in hall:
-            if i not in l2:
-                l2.append(i)
-        result_html += '</tr>'
-        for i in l2:
-            session = Session.objects.filter(film=f, status=0, hall__number=i)
-            for s2 in session:
-                result_html += '<tr><td>Зал № %s</td>' % i
-                if datetime.strftime(s2.date_time, "%Y.%m.%d") == datetime.strftime(now, "%Y.%m.%d"):
-                    # СЕАНС В СЕГОДНЯШНИЙ ДЕНЬ РИСУЕМ ЕГО В РАСПИСАНИИ
-                    time_start = 10
-                    while time_start < 24:
-                        if time_start == int(datetime.strftime(s2.date_time, "%H")):
-                            result_html += '<td bgcolor="#E6E6FA"><a href="/schedule/view/%s">%s</a></td>' % \
-                                           (s2.id, datetime.strftime(s2.date_time, "%H:%M"))
-                        else:
-                            result_html += '<td></td>'
-                        time_start += 1
-                    result_html += '</tr>'
-        result_html += '<tr><th>Время:</th>'
+        delta = timedelta(days=1)
+        result_html = '<table class="table table-hover"><tr><th>Выберите день:</th></tr>'
+        y = 0
+        now = datetime.now()
+        while y < 10:
+            i = now.weekday()
+            k = ""
+            if i == 0:
+                k = "Понедельник"
+            if i == 1:
+                k = "Вторник"
+            if i == 2:
+                k = "Среда"
+            if i == 3:
+                k = "Четверг"
+            if i == 4:
+                k = "Пятница"
+            if i == 5:
+                k = "Суббота"
+            if i == 6:
+                k = "Воскресенье"
+            result_html += '<tr><td><a href = "?day=%s">%s, %s</a></td></tr>' % (datetime.strftime(now, "%Y-%m-%d"), now.day, k)
+            now += delta
+            y += 1
+
+        result_html += '<table class="table table-hover" width="100%">'
         time_start = 10
+
+        result_html += '<tr><th>Время:</th>'
         while time_start < 24:
             result_html += '<th>' + str(time_start) + ' <sup>00</sup></th>'
             time_start += 1
         result_html += '</tr>'
 
-    result_html += '</table>'
-    #Конец ЖЕСТИ
+        film = Film.objects.all()
+        for f in film:
+            session = Session.objects.filter(film=f, status=0)
+            result_html += '<tr><td>%s</td></tr><tr>' % f.film
+            hall = []
+            for s in session:
+                hall.append(int(s.hall.number))
+            l2 = []
+            for i in hall:
+                if i not in l2:
+                    l2.append(i)
+            result_html += '</tr>'
+            for i in l2:
+                session = Session.objects.filter(film=f, status=0, hall__number=i)
+                result_html += '<tr><td>Зал № %s</td>' % i
+                # СЕАНС В ВЫБРАННЫЙ ДЕНЬ РИСУЕМ ЕГО В РАСПИСАНИИ
+                time_start = 10
+                while time_start < 24:
+                    for s2 in session:
+                        if datetime.strftime(s2.date_time, "%Y.%m.%d") == datetime.strftime(DATE, "%Y.%m.%d"):
+                            if time_start == int(datetime.strftime(s2.date_time, "%H")):
+                                result_html += '<td bgcolor="#E6E6FA"><a href="/schedule/view/%s">%s</a></td>' % \
+                                               (s2.id, datetime.strftime(s2.date_time, "%H:%M"))
+                                continue
+                    result_html += '<td></td>'
+                    time_start += 1
+                result_html += '</tr>'
+            result_html += '<tr><th>Время:</th>'
+            time_start = 10
+            while time_start < 24:
+                result_html += '<th>' + str(time_start) + ' <sup>00</sup></th>'
+                time_start += 1
+            result_html += '</tr>'
+
+        result_html += '</table>'
+        context["html"] = result_html
+        return self.render_to_response(context)
 
     def get_context_data(self, **kwargs):
         context = super(ScheduleView, self).get_context_data(**kwargs)
 
         context.update({
-            "html": self.result_html,
-            # "now": datetime.strftime(self.now, "%Y.%m.%d"),
-            # "next1": datetime.strftime(self.now + self.delta, "%Y.%m.%d"),
-            })
+        })
         return context
 
 
@@ -270,7 +344,7 @@ def add_film(request):
                                   'formadd': FilmModelForm(),
                                   'formedit': film_edit_form,
                                   "list_film": Film.objects.all(),
-                              }))
+                                  }))
 
 
 def edit_film(request, id):
@@ -303,7 +377,7 @@ def edit_film(request, id):
                                   'formedit': form,
                                   "id_session": id,
                                   "list_film": Film.objects.all(),
-                              }))
+                                  }))
 
 
 def delete_film(request, id):
@@ -339,7 +413,7 @@ def delete_film(request, id):
                                   'formedit': film_edit_form,
                                   "id_session": id,
                                   "list_film": Film.objects.all(),
-                              }))
+                                  }))
 
 
 class FilmsView(TemplateView):
